@@ -1,0 +1,23 @@
+# ── Vagrant ──────────────────────────────────────────────────────────────────
+.vagrant/
+
+# ── Ansible ──────────────────────────────────────────────────────────────────
+# NEVER commit the unencrypted vault. Use vault.yml.example as reference.
+ansible/group_vars/vault.yml
+*.retry
+
+# ── OS / Editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
+
+# ── Wazuh install artifacts (downloaded at provision time) ────────────────────
+ansible/roles/wazuh_server/files/wazuh-install.sh
+ansible/roles/wazuh_server/files/wazuh-install-files.tar
+
+# ── Screenshots / sensitive captures ─────────────────────────────────────────
+docs/screenshots/*.pcap
