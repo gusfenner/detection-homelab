@@ -1,0 +1,14 @@
+---
+# vault.yml.example — Template for Ansible Vault secrets
+#
+# USAGE:
+#   1. Copy this file:   cp vault.yml.example vault.yml
+#   2. Edit passwords:   nano vault.yml
+#   3. Encrypt it:       ansible-vault encrypt ansible/group_vars/vault.yml
+#   4. Run playbook:     ansible-playbook ansible/site.yml --ask-vault-pass
+#
+# WARNING: NEVER commit the unencrypted vault.yml to Git!
+#          The .gitignore already excludes it.
+
+vault_wazuh_password:     "ChangeMe_Wazuh@Lab2024!"
+vault_wazuh_api_password: "ChangeMe_Api@Lab2024!"

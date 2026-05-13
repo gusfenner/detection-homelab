@@ -1,0 +1,36 @@
+---
+# group_vars/all.yml — Shared variables for all VMs
+# Sensitive values (passwords) are stored in vault.yml (Ansible Vault encrypted)
+# See vault.yml.example for the expected structure
+
+# ── Wazuh ────────────────────────────────────────────────────────────────────
+wazuh_version:      "4.14"
+wazuh_manager_ip:   "192.168.56.10"
+wazuh_agent_name:   "agent-node"
+
+wazuh_dashboard_port: 443
+wazuh_dashboard_user: "admin"
+wazuh_dashboard_password: "{{ vault_wazuh_password }}"
+
+wazuh_api_user:     "wazuh-wui"
+wazuh_api_password: "{{ vault_wazuh_api_password }}"
+
+# ── Network ──────────────────────────────────────────────────────────────────
+lab_network:        "192.168.56.0/24"
+wazuh_server_ip:    "192.168.56.10"
+agent_node_ip:      "192.168.56.20"
+attacker_ip:        "192.168.56.30"
+
+# ── Common OS ────────────────────────────────────────────────────────────────
+timezone:           "America/Sao_Paulo"
+common_packages:
+  - curl
+  - wget
+  - gnupg
+  - apt-transport-https
+  - ca-certificates
+  - software-properties-common
+  - net-tools
+  - vim
+  - unzip
+  - jq
