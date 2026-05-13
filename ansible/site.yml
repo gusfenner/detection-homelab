@@ -1,0 +1,27 @@
+---
+# site.yml — Full playbook (used for reference or when running Ansible from WSL2)
+# For ansible_local provisioning, Vagrant calls the per-VM playbooks individually.
+
+- name: Apply common baseline to all hosts
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Provision Wazuh Server (all-in-one)
+  hosts: wazuh_server
+  become: true
+  roles:
+    - wazuh_server
+
+- name: Provision Agent Node (Sysmon4Linux + Wazuh Agent)
+  hosts: agent_node
+  become: true
+  roles:
+    - wazuh_agent
+
+- name: Provision Attacker Node
+  hosts: attacker
+  become: true
+  roles:
+    - attacker

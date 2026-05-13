@@ -1,0 +1,9 @@
+---
+# attacker.yml — Playbook executed by ansible_local on the attacker VM
+
+- name: Provision Attacker Node
+  hosts: all
+  become: true
+  roles:
+    - common
+    - attacker

@@ -1,0 +1,10 @@
+---
+# wazuh_server.yml — Playbook executed by ansible_local on the wazuh-server VM
+# Runs with: hosts: all + connection: local (the VM provisions itself)
+
+- name: Provision Wazuh Server
+  hosts: all
+  become: true
+  roles:
+    - common
+    - wazuh_server

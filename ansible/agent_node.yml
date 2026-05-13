@@ -1,0 +1,9 @@
+---
+# agent_node.yml — Playbook executed by ansible_local on the agent-node VM
+
+- name: Provision Agent Node (Sysmon4Linux + Wazuh Agent)
+  hosts: all
+  become: true
+  roles:
+    - common
+    - wazuh_agent
