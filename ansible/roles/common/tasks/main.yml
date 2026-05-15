@@ -1,0 +1,64 @@
+---
+# roles/common/tasks/main.yml
+# Baseline tasks applied to ALL VMs in the lab
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Disable swap (required for Wazuh Indexer / OpenSearch)
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Ensure swap remains disabled after reboot
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s+swap\s+.*)$'
+    replace: '# \1'
+
+- name: Set vm.max_map_count for OpenSearch (Wazuh Indexer)
+  ansible.posix.sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    state: present
+    reload: true
+
+- name: Set fs.file-max
+  ansible.posix.sysctl:
+    name: fs.file-max
+    value: "65536"
+    state: present
+    reload: true
+
+- name: Configure /etc/hosts with lab hostnames
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} DETECTION HOMELAB"
+    block: |
+      192.168.56.10   wazuh-server
+      192.168.56.20   agent-node
+      192.168.56.30   attacker
+
+- name: Ensure /vagrant/attack scripts are executable
+  ansible.builtin.find:
+    paths: /vagrant/attack
+    patterns: "*.sh"
+    recurse: true
+  register: attack_scripts
+
+- name: Set execute bit on attack scripts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0755"
+  loop: "{{ attack_scripts.files }}"
+  when: attack_scripts.files | length > 0
