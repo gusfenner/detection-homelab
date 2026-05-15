@@ -86,7 +86,7 @@ graph TB
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/detection-homelab.git
+git clone https://github.com/gusfenner/detection-homelab.git
 cd detection-homelab
 
 # 2. (Optional) Set custom passwords in the vault
