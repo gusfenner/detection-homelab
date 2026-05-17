@@ -1,0 +1,113 @@
+---
+# roles/wazuh_server/tasks/main.yml
+# Installs Wazuh 4.14 all-in-one (Manager + Indexer + Dashboard) using the official script.
+
+# ── 1. Prepare install config ────────────────────────────────────────────────
+- name: Download Wazuh install script
+  ansible.builtin.get_url:
+    url: "https://packages.wazuh.com/{{ wazuh_version }}/wazuh-install.sh"
+    dest: /tmp/wazuh-install.sh
+    mode: "0755"
+
+- name: Download Wazuh config generator script
+  ansible.builtin.get_url:
+    url: "https://packages.wazuh.com/{{ wazuh_version }}/config.yml"
+    dest: /tmp/wazuh-config.yml
+    mode: "0644"
+
+- name: Deploy Wazuh node config (single-node all-in-one)
+  ansible.builtin.template:
+    src: wazuh-config.yml.j2
+    dest: /tmp/wazuh-config.yml
+    mode: "0644"
+
+# ── 2. Run installer ─────────────────────────────────────────────────────────
+- name: Check if Wazuh is already installed
+  ansible.builtin.stat:
+    path: /var/ossec/bin/wazuh-control
+  register: wazuh_installed
+
+- name: Run Wazuh all-in-one installer (takes 5–10 minutes)
+  ansible.builtin.command:
+    cmd: bash /tmp/wazuh-install.sh -a -i  # -a = all-in-one, -i = ignore health checks
+    chdir: /tmp
+  when: not wazuh_installed.stat.exists
+  register: wazuh_install_result
+  async: 900   # 15-min timeout
+  poll: 30
+
+- name: Print install summary
+  ansible.builtin.debug:
+    msg: "{{ wazuh_install_result.stdout_lines[-20:] }}"
+  when: not wazuh_installed.stat.exists
+
+# ── 3. Deploy custom rules and decoders ─────────────────────────────────────
+- name: Copy Sysmon4Linux decoder
+  ansible.builtin.copy:
+    src: local_decoders.xml
+    dest: /var/ossec/etc/decoders/local_decoders.xml
+    owner: wazuh
+    group: wazuh
+    mode: "0640"
+  notify: Restart wazuh-manager
+
+- name: Copy custom ATT&CK detection rules
+  ansible.builtin.copy:
+    src: local_rules.xml
+    dest: /var/ossec/etc/rules/local_rules.xml
+    owner: wazuh
+    group: wazuh
+    mode: "0640"
+  notify: Restart wazuh-manager
+
+# ── 4. Patch ossec.conf to accept remote syslog ──────────────────────────────
+- name: Ensure remote syslog input is configured
+  ansible.builtin.blockinfile:
+    path: /var/ossec/etc/ossec.conf
+    marker: "<!-- {mark} SYSMON REMOTE SYSLOG -->"
+    insertafter: "<ossec_config>"
+    block: |
+      <remote>
+        <connection>syslog</connection>
+        <port>514</port>
+        <protocol>udp</protocol>
+        <allowed-ips>192.168.56.0/24</allowed-ips>
+      </remote>
+  notify: Restart wazuh-manager
+
+# ── 5. Ensure services are running ───────────────────────────────────────────
+- name: Start and enable Wazuh Manager
+  ansible.builtin.systemd:
+    name: wazuh-manager
+    state: started
+    enabled: true
+
+- name: Start and enable Wazuh Indexer
+  ansible.builtin.systemd:
+    name: wazuh-indexer
+    state: started
+    enabled: true
+
+- name: Start and enable Wazuh Dashboard
+  ansible.builtin.systemd:
+    name: wazuh-dashboard
+    state: started
+    enabled: true
+
+- name: Wait for Dashboard to be reachable
+  ansible.builtin.uri:
+    url: "https://{{ wazuh_manager_ip }}"
+    method: GET
+    validate_certs: false
+    status_code: [200, 302]
+  register: dashboard_check
+  retries: 20
+  delay: 15
+  until: dashboard_check.status in [200, 302]
+
+- name: Print access information
+  ansible.builtin.debug:
+    msg:
+      - "Wazuh Dashboard: https://{{ wazuh_manager_ip }}"
+      - "Username: admin"
+      - "Password: Check /tmp/wazuh-passwords.txt on this VM"

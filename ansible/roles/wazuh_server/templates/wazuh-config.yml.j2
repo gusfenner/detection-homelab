@@ -1,0 +1,17 @@
+---
+# wazuh-config.yml.j2 — Wazuh single-node install configuration
+# Used by the official wazuh-install.sh script
+# Ref: https://documentation.wazuh.com/current/quickstart.html
+
+nodes:
+  indexer:
+    - name: node-1
+      ip: "{{ wazuh_manager_ip }}"
+
+  server:
+    - name: wazuh-1
+      ip: "{{ wazuh_manager_ip }}"
+
+  dashboard:
+    - name: dashboard
+      ip: "{{ wazuh_manager_ip }}"

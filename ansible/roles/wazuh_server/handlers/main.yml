@@ -1,0 +1,8 @@
+---
+# roles/wazuh_server/handlers/main.yml
+
+- name: Restart wazuh-manager
+  ansible.builtin.systemd:
+    name: wazuh-manager
+    state: restarted
+  listen: "Restart wazuh-manager"

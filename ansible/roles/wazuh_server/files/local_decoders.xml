@@ -1,0 +1,86 @@
+<!--
+  local_decoders.xml — Custom decoders for Sysmon for Linux (Sysmon4Linux)
+  Wazuh Manager: /var/ossec/etc/decoders/local_decoders.xml
+
+  Sysmon4Linux writes XML-formatted events to syslog.
+  These decoders extract relevant fields for rule matching.
+
+  Event flow:
+    Sysmon4Linux → /var/log/syslog → Wazuh Agent (localfile) → Manager → Decoded here
+-->
+
+<!-- ── Parent decoder: match any sysmon XML event ────────────────────────── -->
+<decoder name="sysmon-linux">
+  <prematch>{"version":"</prematch>
+</decoder>
+
+<!-- Alternate parent for raw syslog-formatted sysmon events -->
+<decoder name="sysmon-linux-xml">
+  <prematch offset="after_parent">&lt;EventID&gt;</prematch>
+</decoder>
+
+<!-- ── EventID extractor ─────────────────────────────────────────────────── -->
+<decoder name="sysmon-linux-eventid">
+  <parent>sysmon-linux</parent>
+  <regex offset="after_parent">EventID":(\d+)</regex>
+  <order>data.sysmon.eventid</order>
+</decoder>
+
+<!-- ── Process Create (EventID 1) ───────────────────────────────────────── -->
+<decoder name="sysmon-linux-process-create">
+  <parent>sysmon-linux</parent>
+  <regex>Image":"([^"]+)"</regex>
+  <order>data.sysmon.image</order>
+</decoder>
+
+<decoder name="sysmon-linux-cmdline">
+  <parent>sysmon-linux</parent>
+  <regex>CommandLine":"([^"]+)"</regex>
+  <order>data.sysmon.commandline</order>
+</decoder>
+
+<decoder name="sysmon-linux-user">
+  <parent>sysmon-linux</parent>
+  <regex>User":"([^"]+)"</regex>
+  <order>data.sysmon.user</order>
+</decoder>
+
+<decoder name="sysmon-linux-ppid">
+  <parent>sysmon-linux</parent>
+  <regex>ParentImage":"([^"]+)"</regex>
+  <order>data.sysmon.parentimage</order>
+</decoder>
+
+<!-- ── Network Connect (EventID 3) ──────────────────────────────────────── -->
+<decoder name="sysmon-linux-net-dst">
+  <parent>sysmon-linux</parent>
+  <regex>DestinationIp":"([^"]+)"</regex>
+  <order>data.sysmon.destinationip</order>
+</decoder>
+
+<decoder name="sysmon-linux-net-dstport">
+  <parent>sysmon-linux</parent>
+  <regex>DestinationPort":"(\d+)"</regex>
+  <order>data.sysmon.destinationport</order>
+</decoder>
+
+<!-- ── File Create (EventID 11) ─────────────────────────────────────────── -->
+<decoder name="sysmon-linux-targetfile">
+  <parent>sysmon-linux</parent>
+  <regex>TargetFilename":"([^"]+)"</regex>
+  <order>data.sysmon.targetfilename</order>
+</decoder>
+
+<!-- ── Process Access (EventID 10) ─────────────────────────────────────── -->
+<decoder name="sysmon-linux-targetpid">
+  <parent>sysmon-linux</parent>
+  <regex>TargetProcessId":"(\d+)"</regex>
+  <order>data.sysmon.targetprocessid</order>
+</decoder>
+
+<!-- ── Create Remote Thread (EventID 8) ─────────────────────────────────── -->
+<decoder name="sysmon-linux-targetproc">
+  <parent>sysmon-linux</parent>
+  <regex>TargetImage":"([^"]+)"</regex>
+  <order>data.sysmon.targetimage</order>
+</decoder>

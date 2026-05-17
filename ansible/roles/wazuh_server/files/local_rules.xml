@@ -1,0 +1,152 @@
+<!--
+  local_rules.xml — Custom MITRE ATT&CK Detection Rules
+  Wazuh Manager: /var/ossec/etc/rules/local_rules.xml
+
+  Rule ID range: 100001–100099 (reserved for local custom rules)
+  All rules include <mitre> tags for ATT&CK framework correlation in the Dashboard.
+
+  Severity scale:
+    Level  7 : Low    — informational / suspicious activity
+    Level 10 : Medium — likely malicious, warrants investigation
+    Level 12 : High   — confirmed attack pattern, respond immediately
+    Level 15 : Critical — active threat, auto-response triggered
+-->
+
+<group name="sysmon,mitre,detection_homelab,">
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       T1053.003 — Scheduled Task/Job: Cron
+       Detection: ProcessCreate showing crontab being called, OR
+                  FileCreate in /etc/cron* / /var/spool/cron directories
+       ════════════════════════════════════════════════════════════════════════ -->
+  <rule id="100001" level="10">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.image">crontab</field>
+    <description>ATT&amp;CK T1053.003 - Crontab invoked (possible scheduled task persistence)</description>
+    <mitre>
+      <id>T1053.003</id>
+    </mitre>
+    <group>persistence,privilege_escalation,</group>
+  </rule>
+
+  <rule id="100002" level="12">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^11$</field>
+    <field name="data.sysmon.targetfilename">/etc/cron\.|/var/spool/cron/</field>
+    <description>ATT&amp;CK T1053.003 - File written to cron directory (scheduled task creation)</description>
+    <mitre>
+      <id>T1053.003</id>
+    </mitre>
+    <group>persistence,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       T1059.004 — Command and Scripting Interpreter: Unix Shell
+       Detection: Suspicious reverse shell patterns in CommandLine
+       ════════════════════════════════════════════════════════════════════════ -->
+  <rule id="100010" level="15">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.commandline">/dev/tcp/|/dev/udp/|mkfifo|nc -e|ncat -e|bash -i</field>
+    <description>ATT&amp;CK T1059.004 - Reverse shell pattern detected in command line</description>
+    <mitre>
+      <id>T1059.004</id>
+    </mitre>
+    <group>execution,defense_evasion,</group>
+  </rule>
+
+  <rule id="100011" level="10">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.commandline">base64 -d|base64 --decode</field>
+    <field name="data.sysmon.parentimage">bash|sh|zsh</field>
+    <description>ATT&amp;CK T1059.004 - Base64-decoded payload executed via shell (obfuscation)</description>
+    <mitre>
+      <id>T1059.004</id>
+      <id>T1140</id>
+    </mitre>
+    <group>execution,defense_evasion,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       T1055 — Process Injection
+       Detection: ProcessAccess to a foreign process (EventID 10),
+                  or CreateRemoteThread (EventID 8)
+       ════════════════════════════════════════════════════════════════════════ -->
+  <rule id="100020" level="15">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^8$</field>
+    <description>ATT&amp;CK T1055 - CreateRemoteThread detected (classic process injection vector)</description>
+    <mitre>
+      <id>T1055</id>
+    </mitre>
+    <group>defense_evasion,privilege_escalation,</group>
+  </rule>
+
+  <rule id="100021" level="12">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^10$</field>
+    <field name="data.sysmon.commandline">/proc/\d+/mem|ptrace</field>
+    <description>ATT&amp;CK T1055 - Process memory write via /proc/PID/mem or ptrace (injection simulation)</description>
+    <mitre>
+      <id>T1055</id>
+    </mitre>
+    <group>defense_evasion,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       T1136.001 — Create Account: Local Account
+       Detection: useradd / adduser commands, especially with sudo/wheel group
+       ════════════════════════════════════════════════════════════════════════ -->
+  <rule id="100030" level="10">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.image">useradd|adduser</field>
+    <description>ATT&amp;CK T1136.001 - Local account creation detected</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+    <group>persistence,</group>
+  </rule>
+
+  <rule id="100031" level="15">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.image">usermod|gpasswd</field>
+    <field name="data.sysmon.commandline">sudo|wheel|adm</field>
+    <description>ATT&amp;CK T1136.001 - Account added to privileged group (sudo/wheel)</description>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1548.003</id>
+    </mitre>
+    <group>persistence,privilege_escalation,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       T1070.003 — Indicator Removal: Clear Linux or Mac System Logs
+       Detection: history -c, truncation of /var/log/* files
+       ════════════════════════════════════════════════════════════════════════ -->
+  <rule id="100040" level="12">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.commandline">history -c|history -w /dev/null|unset HISTFILE</field>
+    <description>ATT&amp;CK T1070.003 - Shell history cleared (indicator removal)</description>
+    <mitre>
+      <id>T1070.003</id>
+    </mitre>
+    <group>defense_evasion,</group>
+  </rule>
+
+  <rule id="100041" level="12">
+    <if_group>sysmon</if_group>
+    <field name="data.sysmon.eventid">^1$</field>
+    <field name="data.sysmon.commandline">truncate.*\/var\/log|> \/var\/log|shred.*\/var\/log</field>
+    <description>ATT&amp;CK T1070.003 - System log file tampered or cleared</description>
+    <mitre>
+      <id>T1070.003</id>
+    </mitre>
+    <group>defense_evasion,</group>
+  </rule>
+
+</group>
