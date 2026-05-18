@@ -1,0 +1,88 @@
+<!--
+  sysmon-config.xml — Sysmon for Linux Configuration
+  Based on SwiftOnSecurity's sysmon-config, adapted for Linux endpoint monitoring.
+  Ref: https://github.com/SwiftOnSecurity/sysmon-config
+
+  Monitored events:
+    EventID  1  - ProcessCreate
+    EventID  3  - NetworkConnect
+    EventID  8  - CreateRemoteThread
+    EventID  9  - RawAccessRead
+    EventID  10 - ProcessAccess
+    EventID  11 - FileCreate
+    EventID  13 - RegistryValueSet (Linux: file-backed registry simulation)
+-->
+<Sysmon schemaversion="4.70">
+  <HashAlgorithms>sha256</HashAlgorithms>
+  <CheckRevocation>False</CheckRevocation>
+
+  <EventFiltering>
+
+    <!-- ── ProcessCreate (EventID 1) ─────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+        <!-- Exclude high-frequency benign processes -->
+        <Image condition="is">/usr/bin/dpkg</Image>
+        <Image condition="is">/usr/bin/apt-get</Image>
+        <Image condition="is">/usr/lib/apt/methods/http</Image>
+        <CommandLine condition="contains">vagrant rsync</CommandLine>
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ── NetworkConnect (EventID 3) ────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <!-- Capture all outbound connections from interesting processes -->
+        <Image condition="contains">bash</Image>
+        <Image condition="contains">sh</Image>
+        <Image condition="contains">python</Image>
+        <Image condition="contains">nc</Image>
+        <Image condition="contains">ncat</Image>
+        <Image condition="contains">curl</Image>
+        <Image condition="contains">wget</Image>
+        <DestinationPort condition="is">4444</DestinationPort>
+        <DestinationPort condition="is">1337</DestinationPort>
+        <DestinationPort condition="is">9001</DestinationPort>
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ── CreateRemoteThread (EventID 8) ────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <CreateRemoteThread onmatch="include">
+        <!-- Capture all remote thread creation — always suspicious on Linux -->
+        <TargetImage condition="is not">sysmon</TargetImage>
+      </CreateRemoteThread>
+    </RuleGroup>
+
+    <!-- ── ProcessAccess (EventID 10) ────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <!-- Capture memory read/write to foreign processes -->
+        <CallTrace condition="contains">/proc</CallTrace>
+        <GrantedAccess condition="is">0x1fffff</GrantedAccess>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- ── FileCreate (EventID 11) ───────────────────────────────────────── -->
+    <RuleGroup name="" groupRelation="or">
+      <FileCreate onmatch="include">
+        <!-- Cron directories — persistence -->
+        <TargetFilename condition="begin with">/etc/cron</TargetFilename>
+        <TargetFilename condition="begin with">/var/spool/cron</TargetFilename>
+        <!-- Startup scripts -->
+        <TargetFilename condition="begin with">/etc/init.d</TargetFilename>
+        <TargetFilename condition="begin with">/etc/systemd/system</TargetFilename>
+        <!-- Password and shadow files -->
+        <TargetFilename condition="is">/etc/passwd</TargetFilename>
+        <TargetFilename condition="is">/etc/shadow</TargetFilename>
+        <TargetFilename condition="is">/etc/sudoers</TargetFilename>
+        <!-- SSH keys -->
+        <TargetFilename condition="contains">.ssh/authorized_keys</TargetFilename>
+        <!-- Temporary executables -->
+        <TargetFilename condition="begin with">/tmp</TargetFilename>
+        <TargetFilename condition="begin with">/dev/shm</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>

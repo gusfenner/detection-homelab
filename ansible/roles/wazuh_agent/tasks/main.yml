@@ -1,0 +1,110 @@
+---
+# roles/wazuh_agent/tasks/main.yml
+# Installs Wazuh Agent 4.14, enrolls it with wazuh-server, and sets up Sysmon4Linux
+
+# ── 1. Install Wazuh Agent ───────────────────────────────────────────────────
+- name: Add Wazuh GPG key
+  ansible.builtin.apt_key:
+    url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    state: present
+
+- name: Add Wazuh repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+    state: present
+    filename: wazuh
+
+- name: Install Wazuh Agent
+  ansible.builtin.apt:
+    name: wazuh-agent
+    state: present
+    update_cache: true
+  environment:
+    WAZUH_MANAGER: "{{ wazuh_manager_ip }}"
+    WAZUH_AGENT_NAME: "{{ wazuh_agent_name }}"
+
+- name: Deploy agent ossec.conf (includes sysmon localfile)
+  ansible.builtin.copy:
+    src: ossec_agent.conf
+    dest: /var/ossec/etc/ossec.conf
+    owner: wazuh
+    group: wazuh
+    mode: "0640"
+  notify: Restart wazuh-agent
+
+- name: Enable and start Wazuh Agent
+  ansible.builtin.systemd:
+    name: wazuh-agent
+    state: started
+    enabled: true
+    daemon_reload: true
+
+# ── 2. Install Sysmon for Linux ──────────────────────────────────────────────
+- name: Add Microsoft package signing key
+  ansible.builtin.apt_key:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+
+- name: Add Microsoft Ubuntu 22.04 repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main"
+    state: present
+    filename: microsoft-prod
+
+- name: Install Sysmon for Linux
+  ansible.builtin.apt:
+    name: sysmonforlinux
+    state: present
+    update_cache: true
+
+- name: Deploy Sysmon configuration
+  ansible.builtin.copy:
+    src: sysmon-config.xml
+    dest: /etc/sysmon-config.xml
+    mode: "0644"
+
+- name: Check if Sysmon service exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/sysmon.service
+  register: sysmon_service
+
+- name: Install Sysmon with configuration
+  ansible.builtin.command:
+    cmd: sysmon -accepteula -i /etc/sysmon-config.xml
+  when: not sysmon_service.stat.exists
+  register: sysmon_install
+  changed_when: sysmon_install.rc == 0
+
+- name: Update Sysmon configuration (idempotent)
+  ansible.builtin.command:
+    cmd: sysmon -c /etc/sysmon-config.xml
+  when: sysmon_service.stat.exists
+  changed_when: false
+
+- name: Enable and start Sysmon service
+  ansible.builtin.systemd:
+    name: sysmon
+    state: started
+    enabled: true
+
+# ── 3. Configure rsyslog to forward Sysmon logs ──────────────────────────────
+- name: Install rsyslog
+  ansible.builtin.apt:
+    name: rsyslog
+    state: present
+
+- name: Configure rsyslog to forward Sysmon events to Wazuh Manager
+  ansible.builtin.copy:
+    dest: /etc/rsyslog.d/99-sysmon-wazuh.conf
+    content: |
+      # Forward Sysmon events to Wazuh Manager
+      :programname, isequal, "sysmon" @@{{ wazuh_manager_ip }}:514
+      & stop
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Ensure rsyslog is started
+  ansible.builtin.systemd:
+    name: rsyslog
+    state: started
+    enabled: true
