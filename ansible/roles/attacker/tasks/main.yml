@@ -1,0 +1,42 @@
+---
+# roles/attacker/tasks/main.yml
+# Minimal setup for the attacker VM — installs offensive tools used in simulation scripts
+
+- name: Install attacker toolset
+  ansible.builtin.apt:
+    name:
+      - nmap
+      - netcat-openbsd   # nc with -e support
+      - ncat
+      - curl
+      - wget
+      - python3
+      - python3-pip
+      - socat
+      - tcpdump
+      - sshpass
+    state: present
+    update_cache: true
+
+- name: Copy attack simulation scripts to attacker home
+  ansible.builtin.copy:
+    src: /vagrant/attack/
+    dest: /home/vagrant/attack/
+    owner: vagrant
+    group: vagrant
+    mode: "0755"
+    remote_src: true
+
+- name: Create SSH key for attacker → agent-node access (passwordless)
+  ansible.builtin.user:
+    name: vagrant
+    generate_ssh_key: yes
+    ssh_key_bits: 4096
+    ssh_key_file: /home/vagrant/.ssh/id_rsa
+  register: attacker_ssh_key
+
+- name: Print attacker public key (add to agent-node authorized_keys manually if needed)
+  ansible.builtin.debug:
+    msg:
+      - "Attacker public key (add to agent-node if running remote attacks):"
+      - "{{ attacker_ssh_key.ssh_public_key }}"
